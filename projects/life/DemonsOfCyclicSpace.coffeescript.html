@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <script src="http://code.jquery.com/jquery-1.6.3.min.js"></script>
+    <script src="http://jashkenas.github.com/coffee-script/extras/coffee-script.js"></script>
+    <script type="text/coffeescript">
+class Game
+  constructor: (@width, @height, @levels = 10) ->
+    @data = @createBoard @width, @height
+    @newdata = @createBoard @width, @height
+    @seed()
+
+  createBoard: () ->
+    b = new Array(@width)
+    b[x] = new Array(@height) for x in [0..@width-1]
+    return b
+
+  seed: () ->
+    @data[x][y] = Math.floor(Math.random() * @levels) for x in [0..@width-1] for y in [0..@height-1]
+
+  tick: () ->
+    @tickCell x, y for x in [0..@width-1] for y in [0..@height-1]
+    [@data, @newdata] = [@newdata, @data]
+
+  tickCell: (x, y) ->
+    successor = (@data[x][y] + 1) % @levels
+
+    # NW, N, NE, W, E, SW, S, SE
+    hasSuccessor = (@cellStateIs x-1, y-1, successor) or (@cellStateIs x, y-1, successor) or (@cellStateIs x+1, y-1, successor) or (@cellStateIs x-1, y, successor) or (@cellStateIs x+1, y, successor) or (@cellStateIs x-1, y+1, successor) or (@cellStateIs x, y+1, successor) or (@cellStateIs x+1, y+1, successor)
+    hasSuccessor = (@cellStateIs x, y-1, successor) or(@cellStateIs x-1, y, successor) or (@cellStateIs x+1, y, successor) or (@cellStateIs x, y+1, successor)
+
+    #alert "Has successor #{hasSuccessor} and was #{@data[x][y]} now #{successor}"
+
+    @newdata[x][y] = if hasSuccessor then successor else @data[x][y]
+
+  cellState: (x, y) ->
+    @data[x][y]
+
+  cellStateIs: (x, y, check) ->
+    x >= 0 and y >= 0 and y < @height and x < @width and @data[x][y] == check
+
+class GamePresenter
+  constructor: (@boardWidth, @boardHeight, @tickInterval, @cellWidth = 20, @cellHeight = @cellWidth, @padding = 1) ->
+    @tickcount = 0
+    @maxage = 10
+    @colorstep = 9
+    @colors = [[253,185,19],[239,65,53],[12,58,186],[226,1,119],[51,48,146],[0,174,239],[141,198,63],[186,15,14],[98,250,1],[5,15,198],[250,50,50],[50,50,250],[99,99,255],[5,200,5],[150,10,98],[77,200,150]]
+  
+    # set up UI
+    @elem = @generate boardWidth, boardHeight, "board1"
+    $('html').prepend @elem
+    @canvas = @elem[0].getContext('2d')
+    @elemnew = @generate boardWidth, boardHeight, "board2"
+    $('html').prepend @elemnew
+    @canvasnew = @elemnew[0].getContext('2d')
+
+    # set up input
+    self = this
+
+    # buttons
+    $('#button_togglepause').click ((e) -> self.togglepause())
+    $('#button_reset').click ((e) -> self.reset())
+
+    # creates the board and draw
+    @reset()
+
+  reset: () ->
+    @game = new Game @boardWidth, @boardHeight, @maxage
+    @draw()
+
+  start: () ->
+    self = this
+    @pause() # clear existing timers
+    @timerHandle = setInterval (() -> self.tick()), @tickInterval
+
+  togglepause: () ->
+    if @timerHandle then @pause() else @start()
+
+  pause: () ->
+    clearInterval @timerHandle if @timerHandle != null
+    @timerHandle = null
+
+  generate: (boardWidth, boardHeight, name) ->
+    canvasWidth = (@padding + @cellWidth) * boardWidth + @padding
+    canvasHeight = (@padding + @cellHeight) * boardHeight + @padding
+    $("""<canvas style="position: absolute; top: 40px; left: 0px;" id="#{name}" width="#{canvasWidth}" height="#{canvasHeight}">No support</canvas>""")
+
+  draw: () ->
+    @drawCell x, y, (@game.cellState x, y) for x in [0..@game.width-1] for y in [0..@game.height-1]
+    @elemnew.visibility = "hidden"
+    @elem.visibility = "visible"
+    [@elem, @elemnew, @canvas, @canvasnew] = [@elemnew, @elem, @canvas, @canvasnew]
+
+    return true # prevent perf hit from returning the result for each iteration above
+
+  drawCell: (x, y, state) ->
+    xCoord =  (@padding + @cellWidth) * x + @padding
+    yCoord =  (@padding + @cellHeight) * y + @padding
+
+    color = @colors[state]
+
+    @canvasnew.fillStyle = "rgb(#{color[0]}, #{color[1]}, #{color[2]})"
+    @canvasnew.fillRect xCoord, yCoord, @cellWidth, @cellHeight
+
+  tick: () ->
+    @game.tick()
+    @tickcount++
+    @draw()
+
+  eventToCell: (eventObj) ->
+    offset = $(eventObj.target).offset()
+    [xx, yy] = [eventObj.pageX - offset.left, eventObj.pageY - offset.top]
+    {x: (Math.floor xx / (@padding + @cellWidth)), y: (Math.floor yy / (@padding + @cellHeight))}
+
+game = new GamePresenter 200, 200, 10, 2, 2, 0
+game.start()
+    </script>
+    
+    <title>Demons of Cyclic Space - CoffeeScript</title>
+  </head>
+  <body>
+   <button id="button_togglepause">Pause/Continue</button>
+   <button id="button_reset">Reset</button>
+  </body>
+</html>
+

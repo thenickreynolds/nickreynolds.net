@@ -1,0 +1,386 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd"> 
+<html>
+<head>
+<title>Game of Life</title>
+<script>
+
+var board_width = 100;
+var board_height = 100;
+var cell_size = 2;
+var board;
+var color_on = "rgb(0, 0, 0)";
+var color_off = "rgb(230, 230, 230)";
+var canvas_id = "canvasOfLife";
+var tick_time = 500;
+var running = false;
+var canvasElem;
+var drawCanvas;
+var showColors;
+var timeout;
+var onOffToggle;
+
+// set up the board, set default values etc.
+function init()
+{
+  if(timeout) clearTimeout(timeout);
+  setRunning(false, true);
+  updateShowColors();
+  updateInterval();
+  updateCellSize(true);
+  updateHeight(true);
+  updateWidth(true);
+  canvasElem = createCanvas();
+  
+  if(canvasElem && canvasElem.getContext)
+  {
+    var context = canvasElem.getContext('2d');
+	if(context)
+	{
+	  drawCanvas = context;
+	  board = createEmptyBoard();
+	  start();
+	}
+	else
+	{
+	  alert("Browser does not support canvas 2d");
+	}
+  }
+  else
+  {
+    alert("Browser does not support canvas");
+  }
+}
+
+// returns an empty board
+function createEmptyBoard()
+{
+  var b = new Array(board_width);
+  for(var x = 0; x < board_width; x++)
+  {
+	b[x] = new Array();
+	for(var y = 0; y < board_height; y++)
+	{
+	  b[x][y] = 0;
+	}
+  }
+  return b;
+}
+
+// creates the initial canvas with the correct dimensions
+function createCanvas()
+{
+  var canvas = document.getElementById(canvas_id);
+  if(canvas)
+  {
+	document.body.removeChild(canvas);
+  }
+  
+  canvas = document.createElement('canvas');
+  canvas.setAttribute('id', canvas_id);
+  canvas.setAttribute('width', (cell_size + 1) * board_width + 1);
+  canvas.setAttribute('height', (cell_size + 1) * board_height + 1);
+  canvas.addEventListener("click", function(e) { click(e); }, false);
+  document.body.appendChild(canvas);
+  return canvas;
+}
+
+// start the game with the seed
+function start()
+{
+  seed();
+  tick();
+}
+
+// ticks the life of the game (if running) and updates the board graphic, recursive calls
+function tick()
+{
+  if(running)
+  {
+	tickLife();
+  }
+  drawBoard();
+  timeout = setTimeout(function() { tick(); }, tick_time);
+}
+
+// seed the board
+function seed()
+{
+  for(var x = 0; x < board_width; x++)
+  {
+    for(var y = 0; y < board_height; y++)
+	{
+	  if(Math.random() > 0.85) board[x][y] = 1;
+	}
+  }
+}
+
+// tick the life of the board, replace the old board with the new
+function tickLife()
+{
+  var newBoard = createEmptyBoard();
+  var countAlive = 0;
+  
+  for(var x = 0; x < board_width; x++)
+  {
+    for(var y = 0; y < board_height; y++)
+    {
+	  var count = 0;
+	  count =
+	    value(x-1, y-1)		// NW
+	    + value(x, y-1)		// N
+	    + value(x+1, y-1)	// NE
+	    + value(x+1, y)		// E
+	    + value(x+1, y+1)	// SE
+	    + value(x, y+1)		// S
+	    + value(x-1, y+1)	// SW
+	    + value(x-1, y);	// W
+	  
+	  if(isCellAlive(x, y))
+	  {
+		// Any live cell with fewer than two live neighbours dies, as if caused by under-population.
+		if(count < 2)
+		  newBoard[x][y] = 0;
+		// Any live cell with two or three live neighbours lives on to the next generation.
+		if(count == 2 || count == 3)
+		  newBoard[x][y] = Math.min(board[x][y] + 1, 20);
+		// Any live cell with more than three live neighbours dies, as if by overcrowding.
+		if(count > 3)
+		  newBoard[x][y] = 0;
+	  }
+	  else
+	  {
+		// Any dead cell with exactly three live neighbours becomes a live cell, as if by reproduction.
+		if(count == 3) newBoard[x][y] = 1;
+	  }
+	  
+	  if(isCellAlive(x,y)) countAlive++;
+    }
+  }
+  
+  board = newBoard;
+  if(countAlive == 0)
+  {
+    setRunning(false, true);
+  }
+}
+
+// returns true if the given cell is alive
+function isCellAlive(x, y)
+{
+  if(x < 0 || y < 0 || x > board_width -1 || y > board_height -1) return false;
+  return (board[x][y] > 0);
+}
+
+// returns 1 if the given cell is alive, 0 if dead
+function value(x, y)
+{
+  return isCellAlive(x, y) ? 1 : 0;
+}
+
+// draws the board graphic
+function drawBoard()
+{
+  for(var x = 0; x < board_width; x++)
+  {
+    for(var y = 0; y < board_height; y++)
+	{
+	  draw(x, y, board[x][y]);
+	}
+  }
+}
+
+// draws a cell at the given coords
+function draw(x, y, on)
+{
+  var gap = 1;
+  if(on)
+  {
+    if(showColors)
+	{
+	  var drawColor = 200 - on * 10;
+	  drawCanvas.fillStyle = "rgb(" + 0 + "," + drawColor + "," + 0 + ")";
+	}
+	else
+	{
+	  drawCanvas.fillStyle = color_on;
+	}
+  }
+  else
+  {
+	drawCanvas.fillStyle = color_off;
+  }
+  
+  var xx = x * (cell_size + 1);
+  var yy = y * (cell_size + 1);
+  
+  drawCanvas.fillRect(xx, yy, cell_size, cell_size);
+}
+
+// toggles pause
+function pauseToggle()
+{
+  setRunning(running ^= true);
+}
+
+// sets the running state and updates the UI accordingly
+function setRunning(state, gameOver)
+{
+  running = state;
+  document.getElementById("pauseToggleButton").innerHTML = (gameOver) ? "Start" : (running) ? "Pause" : "Continue";
+}
+
+// resets the board to the original seeded form
+function reset(empty)
+{
+  setRunning(false, true);
+  board = createEmptyBoard();
+  if(!empty) seed();
+}
+
+// handles a click on the canvas
+function click(e)
+{
+  var coords = getClickCoords(e);
+  if(coords.x >= 0 && coords.x < board_width && coords.y >= 0 && coords.y <= board_height)
+  {
+	board[coords.x][coords.y] = (board[coords.x][coords.y]) ? 0 : 1;
+  }
+  drawBoard();
+  return false;
+}
+
+// returns the board coords for a click on the canvas
+function getClickCoords(e)
+{
+  var x;
+  var y;
+  if (e.pageX || e.pageY)
+  {
+    x = e.pageX;
+    y = e.pageY;
+  }
+  else
+  {
+    x = e.clientX + document.body.scrollLeft + document.documentElement.scrollLeft;
+    y = e.clientY + document.body.scrollTop + document.documentElement.scrollTop;
+  }
+  x -= canvasElem.offsetLeft;
+  y -= canvasElem.offsetTop;
+  
+  var coords = new Object;
+  coords.x = Math.floor(x / (cell_size + 1));
+  coords.y = Math.floor(y / (cell_size + 1));
+  return coords;
+}
+
+// updates the tick interval
+function updateInterval()
+{
+  tick_time = parseInt(document.getElementById("interval").value);
+}
+
+// updates the option to show or not show colors
+function updateShowColors()
+{
+  showColors = document.getElementById("interval").value;
+}
+
+// updates the width
+function updateWidth(fromInit)
+{
+  board_width = parseInt(document.getElementById("boardWidth").value);
+  if(!fromInit) init();
+}
+
+// updates the height
+function updateHeight(fromInit)
+{
+  board_height = parseInt(document.getElementById("boardHeight").value);
+  if(!fromInit) init();
+}
+
+// updates the cell size
+function updateCellSize(fromInit)
+{
+  cell_size = parseInt(document.getElementById("cellSize").value);
+  if(!fromInit) init();
+}
+</script>
+</head>
+<body onload="init();" align="center" style="font-family: Arial; font-size: 8pt;">
+  <div>
+    <button type="button" onclick="pauseToggle();" id="pauseToggleButton">Start</button> | 
+    <button type="button" onclick="reset();">Reset</button> | 
+	<button type="button" onclick="reset(true);">Clear</button> | 
+	Tick Time: 
+	<select id="interval" onchange="updateInterval()">
+	  <option value="0">No delay</option>
+	  <option value="5">5 ms</option>
+	  <option value="10">10 ms</option>
+	  <option value="50">50 ms</option>
+	  <option value="100">100 ms</option>
+	  <option value="200" selected="selected">200 ms</option>
+	  <option value="500">500 ms</option>
+	  <option value="800">800 ms</option>
+	  <option value="1000">1 second</option>
+	  <option value="2000">2 seconds</option>
+	</select> | 
+	Color by Age:
+	<select id="showColors" onchange="updateShowColors()">
+	  <option value="true" selected="selected">Yes</option>
+	  <option value="false">No</option>
+	</select>
+	<p />
+	<b>[warning: the below options reset the board]</b>
+	<p />
+	Board Width (number of cells):
+	<select id="boardWidth" onchange="updateWidth()">
+	  <option value="5">5 cells</option>
+	  <option value="10">10 cells</option>
+	  <option value="20">20 cells</option>
+	  <option value="30">30 cells</option>
+	  <option value="40">40 cells</option>
+	  <option value="50" selected="selected">50 cells</option>
+	  <option value="60">60 cells</option>
+	  <option value="80">80 cells</option>
+	  <option value="100">100 cells</option>
+	  <option value="200">200 cells</option>
+	  <option value="300">300 cells</option>
+	  <option value="500">500 cells</option>
+	  <option value="1000">1000 cells</option>
+	</select>
+	Board Height (number of cells):
+	<select id="boardHeight" onchange="updateHeight()">
+	  <option value="5">5 cells</option>
+	  <option value="10">10 cells</option>
+	  <option value="20">20 cells</option>
+	  <option value="30">30 cells</option>
+	  <option value="40">40 cells</option>
+	  <option value="50" selected="selected">50 cells</option>
+	  <option value="60">60 cells</option>
+	  <option value="80">80 cells</option>
+	  <option value="100">100 cells</option>
+	  <option value="200">200 cells</option>
+	  <option value="300">300 cells</option>
+	  <option value="500">500 cells</option>
+	  <option value="1000">1000 cells</option>
+	</select>
+	Cell Size:
+	<select id="cellSize" onchange="updateCellSize()">
+	  <option value="1">1 pixel</option>
+	  <option value="2">2 pixels</option>
+	  <option value="3">3 pixels</option>
+	  <option value="4">4 pixels</option>
+	  <option value="5">5 pixels</option>
+	  <option value="6" selected="selected">6 pixels</option>
+	  <option value="7">7 pixels</option>
+	  <option value="8">8 pixels</option>
+	  <option value="9">9 pixels</option>
+	  <option value="10">10 pixels</option>
+	  <option value="12">12 pixels</option>
+	  <option value="15">15 pixels</option>
+	  <option value="20">20 pixels</option>
+	</select>
+  </div>
+</body>
+</html>
