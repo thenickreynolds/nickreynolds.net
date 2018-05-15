@@ -5,9 +5,6 @@
 layout: home
 ---
 
-Welcome
--------
-
 I'm located in San Francisco, California working for Airbnb. I am the
 Engineering Manager for multiple teams within Host Growth, responsible for driving
 increased supply growth to meet Airbnb's demand.
