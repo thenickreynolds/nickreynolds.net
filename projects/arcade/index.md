@@ -1,6 +1,6 @@
 ---
 layout: page
-title: Aracde Machine
+title: Arcade Machine
 ---
 
 [Nick to add photos]
